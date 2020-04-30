@@ -1,101 +1,69 @@
 #include <iostream>
-#include <algorithm>
-#include <functional>
-#include <vector>
-#include <string>
 
 #include "Hamming.h"
 #include "HammingPacket.h"
 
-
-Hamming::Hamming()
+HammingPacket& Hamming::get_packet(int index) // Возвращает копию HammingPacket из вектора по индексу
 {
-	clearText = "";
-}
-
-Hamming::Hamming(HammingPacket tmp)
-{
-	this->text.push_back(tmp);
-}
-
-HammingPacket Hamming::get_packet(int index)
-{
-	HammingPacket h;
-	h = text[index];
-	return h;
+	return text.at(index); // тоже самое что return HammingPacket(text.at(index))
 }
 
 std::string Hamming::get_clear_text()
 {
-	std::vector <HammingPacket>::iterator it;
 	std::string str;
-	for (it = text.begin(); it < text.end(); ++it)
-	{
-		str += (*it).clean_in_string();
+	for (auto & h : text) {
+		str += h.clean_in_string();
 	}
 	return str;
 }
 
-int Hamming::size()
-{
-	return this->text.size();
+bool check_user_input(std::string& str) {
+	std::size_t pos = str.find_first_of(' ');
+	while (pos != std::string::npos) {
+		str.erase(pos, 1);
+		pos = str.find_first_of(' ', pos);
+	}
+
+	for (auto &c : str) {
+		if (c != '0' && c != '1') {
+			return false;
+		}
+	}
+	return true;
 }
 
 std::istream& operator>>(std::istream& in, Hamming& tmp) // inputs text with the Hamming encoding
 {
+	// getting user input
 	std::string str;
-	getline(in, str);
-
-	str.erase(remove_if(str.begin(), str.end(), std::not1(std::ptr_fun(isdigit))), str.end()); // deletes all non-digit symbols
-
-	int n;
-	n = str.size() / 15;
-
-	std::vector <HammingPacket> t(str.size() % 15 == 0 ? (n) : (n + 1));
-	std::vector <HammingPacket>::iterator it = t.begin();
-
-	int i = 0;
-	for (; it < (str.size() % 15 == 0 ? (t.end()) : (t.end() - 1)); ++it)
-	{
-		char s[16] = {};
-		for (int j = 0; j < 15; ++j, ++i)
-		{
-			s[j] = str[i];
+	std::cout << "Put your input here (format: \"1100101 10101 101101\"): ";
+	do {
+		std::getline(in, str);
+		if (!check_user_input(str)) {
+			std::cerr << "Incorrect input found! Try again: ";
 		}
-		HammingPacket a(s);
-		*it = a;
-	}
-	if (t.size() - n != 0)
-	{
-		char s[16] = {};
-		for (int j = 0; j < 15; ++j, ++i)
-		{
-			if (i < (int)str.size())
-			{
-				s[j] = str[n * 15 + j];
-			}
-			else
-			{
-				s[j] = '0';
-			}
-		}
-		HammingPacket a(s);
-		t[n] = a;
+	} while(!check_user_input(str));
+
+	for (int i = 0; i < (int)str.size() / 15; ++i) {
+		tmp.text.emplace_back(str.substr(0, 15).c_str()); // вызвать конструктор HammingPacket из строки в 15 символов
+		str.erase(0, 15); // обрезать первые 15 символов
 	}
 
-	tmp.text = t;
-
+	if (!str.empty())  // если есть лишние биты - дополнить
+	{
+		char s[16] = { '0' };
+		strncpy(s, str.c_str(), str.length());
+		tmp.text.emplace_back(s);
+	}
 	return in;
 }
 
-std::ostream& operator<<(std::ostream& out, Hamming& tmp) // formatted text output in Hamming encoding
+std::ostream& operator<<(std::ostream& out, const Hamming& tmp) // formatted text output in Hamming encoding
 {
-	std::cout << "Total of " << tmp.size() << " elements:" << std::endl;
-	std::vector <HammingPacket>::iterator it;
-	int i = 0;
-	for (it = tmp.text.begin(); it < tmp.text.end(); ++it, ++i)
-	{
-		std::cout << i + 1 << " - " << *it << std::endl;
+	std::cout << "Total of " << tmp.text.size() << " elements:" << std::endl;
+	int i = 1;
+	for (auto & h : tmp.text) {
+		std::cout << i++ << " - " << h << std::endl;
 	}
 	return out;
 }
